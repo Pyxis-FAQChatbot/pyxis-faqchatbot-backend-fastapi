@@ -1,0 +1,19 @@
+# Python 캐시 / 빌드
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# 가상환경
+venv/
+.env
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS 파일
+.DS_Store
+Thumbs.db

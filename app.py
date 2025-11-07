@@ -2,7 +2,7 @@ import os
 import json
 import faiss
 import numpy as np
-import openai
+from openai import OpenAI
 from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
@@ -12,7 +12,7 @@ from typing import List, Optional
 
 # 🔐 환경 변수 로드
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # 📁 경로 설정
 INDEX_PATH = "./faiss_index.index"
@@ -104,9 +104,8 @@ async def query_endpoint(req: ChatRequest):
         "content": f"문서:\n{context_text}\n\n질문: {query}"
     })
 
-    # 🎯 GPT 호출
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=gpt_messages
         )
