@@ -219,8 +219,8 @@ def create_rag_prompt(query: str, retrieved_docs: List[Dict[str, Any]]) -> str:
         truncated_content = full_content[:MAX_CONTENT_LENGTH] + ("..." if len(full_content) > MAX_CONTENT_LENGTH else "")
         context_parts.append(f"내용: {truncated_content}")
         
-        if 'source' in doc:
-            context_parts.append(f"출처: {doc['source']}")
+        # if 'source' in doc:
+            # context_parts.append(f"출처: {doc['source']}")
         context_parts.append("") # 빈 줄
     
     context = "\n".join(context_parts)
