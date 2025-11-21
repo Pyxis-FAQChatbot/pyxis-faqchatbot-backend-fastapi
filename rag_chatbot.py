@@ -12,13 +12,14 @@ import json
 import faiss
 import numpy as np
 from pathlib import Path
-from typing import List, Dict, Any, Optional # Optional import 추가
-from openai import OpenAI, APIError # APIError import 추가
+from typing import List, Dict, Any, Optional
+from openai import OpenAI, APIError
 from transformers import AutoModel, AutoTokenizer
 import torch
+import re # 👈 URL 추출을 위해 re 모듈 import
 
 # ============================================================
-# 1. 경로 설정 (🚨 Path 객체 대신 순수 문자열로 수정됨 🚨)
+# 1. 경로 설정 (순수 문자열 사용)
 # ============================================================
 
 # 파일 경로
@@ -34,13 +35,11 @@ if not OPENAI_API_KEY:
     print("다음 중 하나를 선택하세요:")
     print("1. 터미널에서: export OPENAI_API_KEY='your-api-key'")
     print("2. 코드에서 직접: OPENAI_API_KEY = 'your-api-key'")
-    # 또는 여기에 직접 입력 (보안상 권장하지 않음)
     # OPENAI_API_KEY = "your-api-key-here"
 
 print("="*70)
 print("🤖 정책 지원 안내 RAG 챗봇")
 print("="*70)
-# 출력 시에는 Path 객체의 .exists() 대신 os.path.exists를 사용하도록 수정 필요
 print(f"📂 모델 경로: {FINETUNED_MODEL_PATH}")
 print(f"📂 FAISS 인덱스: {FAISS_INDEX_PATH}")
 print(f"📂 메타데이터: {METADATA_PATH}")
@@ -72,24 +71,14 @@ class FineTunedEmbedder:
         
         # 토크나이저 및 모델 로드
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
-        self.model = AutoModel.from_pretrained(model_path, local_files_only=True) # local_file_only 오타 수정
+        self.model = AutoModel.from_pretrained(model_path, local_files_only=True)
         self.model.to(self.device)
         self.model.eval()
         
         print(f"  ✅ 모델 로드 완료: {model_path}\n")
     
     def encode(self, texts: List[str], batch_size: int = 32, max_length: int = 512) -> np.ndarray:
-        """
-        텍스트를 임베딩 벡터로 변환
-        
-        Args:
-            texts: 임베딩할 텍스트 리스트
-            batch_size: 배치 크기
-            max_length: 최대 토큰 길이
-            
-        Returns:
-            numpy array (n_texts, embedding_dim)
-        """
+        # ... (인코딩 로직 생략 - 변경 없음)
         embeddings = []
         
         with torch.no_grad():
@@ -130,31 +119,18 @@ class FineTunedEmbedder:
 # ============================================================
 
 class FAISSRetriever:
-    """FAISS 인덱스 기반 문서 검색기"""
-    
+    # ... (생략 - 변경 없음)
     def __init__(self, index_path: str, metadata_path: str, embedder: FineTunedEmbedder):
-        """
-        Args:
-            index_path: FAISS 인덱스 파일 경로
-            metadata_path: 메타데이터 JSON 파일 경로
-            embedder: 임베딩 모델 인스턴스
-        """
         print("📚 FAISS 인덱스 로딩 중...")
-        
-        # FAISS 인덱스 로드
         self.index = faiss.read_index(str(index_path))
         print(f"  - 인덱스 크기: {self.index.ntotal:,}개 문서")
         
-        # 메타데이터 로드
         with open(metadata_path, 'r', encoding='utf-8') as f:
             self.metadata = json.load(f)
         
         print(f"  - 메타데이터: {len(self.metadata):,}개 항목")
-        
-        # 임베딩 모델
         self.embedder = embedder
         
-        # GPU 사용 가능 시 FAISS 인덱스를 GPU로 이동
         if torch.cuda.is_available() and faiss.get_num_gpus() > 0:
             print("  - FAISS GPU 모드 활성화")
             res = faiss.StandardGpuResources()
@@ -163,28 +139,12 @@ class FAISSRetriever:
         print("  ✅ FAISS 검색기 준비 완료\n")
     
     def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """
-        쿼리에 대한 top-k 문서 검색
-        
-        Args:
-            query: 검색 쿼리
-            top_k: 반환할 문서 개수
-            
-        Returns:
-            검색 결과 리스트 (각 항목은 metadata + score)
-        """
-        # 쿼리 임베딩
+        # ... (검색 로직 생략 - 변경 없음)
         query_embedding = self.embedder.encode([query])
-
         query_embedding = query_embedding.astype('float32')
 
-        print(f"  🔍 쿼리 벡터 차원: {query_embedding.shape[1]}")
-        print(f"  🔍 쿼리 벡터 Dtype: {query_embedding.dtype}")
-
-        # FAISS 검색 (L2 거리)
         distances, indices = self.index.search(query_embedding, top_k)
         
-        # 결과 구성
         results = []
         for idx, dist in zip(indices[0], distances[0]):
             if idx < len(self.metadata):
@@ -216,7 +176,7 @@ def create_rag_prompt(query: str, retrieved_docs: List[Dict[str, Any]]) -> str:
         truncated_content = full_content[:MAX_CONTENT_LENGTH] + ("..." if len(full_content) > MAX_CONTENT_LENGTH else "")
         context_parts.append(f"내용: {truncated_content}")
         
-        # 출처 정보를 LLM 프롬프트에서 제외합니다.
+        # 출처 정보를 LLM 프롬프트에서 제외합니다. (답변 본문 출처 언급 방지)
         # if 'source' in doc:
         #     context_parts.append(f"출처: {doc['source']}")
         context_parts.append("") # 빈 줄
@@ -236,8 +196,8 @@ def create_rag_prompt(query: str, retrieved_docs: List[Dict[str, Any]]) -> str:
          "queryTitle": "사용자 질문에 대한 요약 제목",
          "followUpQuestions": ["후속 질문 1", "후속 질문 2", "후속 질문 3", "후속 질문 4"]
        }}
-    2. **글쓰기 스타일:** 'botResponse' 필드에 들어갈 답변은 반드시 항목 제목(`지원 대상:`, `신청 방법:`)을 사용하지 않고, 모든 정보를 하나의 자연스러운 글로 녹여내야 해. (친근한 편지나 메시지 형태)
-    3. **페르소나와 가독성:** 'botResponse'는 '친구처럼', '선배처럼' 친근하게 작성하고, 문단 구분을 명확히 하고, 문장이 너무 길어지지 않도록 주의하여 가독성을 최우선으로 해.
+    2. **글쓰기 스타일:** 'botResponse' 필드에 들어갈 답변은 반드시 항목 제목(`지원 대상:`, `신청 방법:`)을 사용하지 않고, 모든 정보를 **마크다운을 활용하여 구조화해.** 특히, **핵심 지원 내용(자격, 금액, 기간 등)은 마크다운 목록(\`*\`)을 사용해 분리**하고, 중요한 키워드는 **볼드(\`**\`) 처리**해.
+    3. **페르소나와 가독성:** 'botResponse'는 '친구처럼', '선배처럼' 친근하게 작성하고, 문단 구분을 명확히 하고, **각 항목(지원 대상, 방법 등)의 시작 부분에 내용과 관련된 적절한 이모지(Emoji)를 붙여서** 문장이 너무 길어지지 않도록 주의하여 가독성을 최우선으로 해. 
     4. **본문 URL 금지:** 'botResponse' 본문(실행력 키우기 이전)에는 **절대로** URL, 웹사이트 주소, 문서 제목, 출처 등의 정보를 **포함하지 마세요.**
     5. **실행력 키우기:** 'botResponse'의 마지막에는 소상공인 친구가 바로 움직일 수 있도록, 가장 빠르고 구체적인 다음 행동 단계를 딱 하나만 콕 집어 제시해 줘. 이 단계에는 **가장 적합한 공고문 URL을 하이퍼링크 형식([공고문 바로가기](URL))으로 깔끔하게 첨부**해야 해.
     6. **후속 질문:** 'followUpQuestions' 필드에 **답변 내용에 기반한, 사용자가 궁금해 할 만한 4개의 새로운 질문**을 생성해.
@@ -427,19 +387,35 @@ class PolicyRAGChatbot:
         # 4-1. 출처 데이터(sources) 형식 변환
         final_sources = []
         for doc in retrieved_docs:
-            source_path = doc.get('source', '')
-            
-            # source 변환: 파일 경로에서 파일 이름(확장자 제외)만 추출
-            source_name = Path(source_path).stem if source_path else 'N/A'
-            
-            # snippet 생성: content의 처음 150자만 추출
             content = doc.get('content', doc.get('text', '내용없음'))
+            title = doc.get('title', '제목 없음')
+            
+            # 1. URL 추출 로직: 문서 내용에서 HTTP/HTTPS URL을 찾습니다.
+            url_match = re.search(r'https?://[^\s)]+', content)
+            extracted_url = url_match.group(0).strip('.') if url_match else 'N/A'
+            
+            # 2. Source (기관) 추출 로직: 문서 제목이나 내용을 기반으로 기관명을 추정합니다.
+            source_name = "출처 정보 없음"
+            if "[광주]" in title or "광주광역시" in content:
+                source_name = "광주광역시"
+            elif "[대구]" in title or "대구광역시" in content:
+                source_name = "대구광역시"
+            elif "[부산]" in title or "부산광역시" in content:
+                source_name = "부산광역시"
+            elif "K-스타트업" in content:
+                source_name = "K-스타트업"
+            elif "국세청" in content:
+                source_name = "국세청"
+            elif doc.get('source_org'): # 기존 메타데이터 필드가 있다면
+                source_name = doc['source_org']
+
+            # 3. Snippet 생성: content의 처음 150자만 추출
             snippet = content[:150].strip() + "..."
             
             final_sources.append({
-                "title": doc.get('title', '제목 없음'),
+                "title": title,
                 "source": source_name, 
-                "url": doc.get('url', 'N/A'),
+                "url": extracted_url,
                 "snippet": snippet
             })
 
