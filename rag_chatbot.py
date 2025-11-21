@@ -74,8 +74,8 @@ class FineTunedEmbedder:
         print(f"  - 디바이스: {self.device}")
         
         # 토크나이저 및 모델 로드
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.model = AutoModel.from_pretrained(model_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
+        self.model = AutoModel.from_pretrained(model_path, local_files_only=True)
         self.model.to(self.device)
         self.model.eval()
         
