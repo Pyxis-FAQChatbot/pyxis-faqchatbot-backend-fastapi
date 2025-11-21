@@ -427,10 +427,18 @@ class PolicyRAGChatbot:
         
         # 4. 결과 반환
         return {
-            'query': query,
-            'answer': answer,
-            'sources': retrieved_docs
+    "answer": str,
+    "sources": [
+        {
+            "title": "...",
+            "source": "...",
+            "url": "...",
+            "snippet": "..."
         }
+    ],
+    "query_title": str,
+    "follow_up_questions": [...]
+}
 
 
 # ============================================================
