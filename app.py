@@ -11,13 +11,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 🔥 RAG 챗봇 import (PolicyRAGChatbot 클래스는 존재한다고 가정)
-# 🚨 중요한 수정: 테스트용 더미 클래스 정의를 삭제하고 실제 클래스를 임포트합니다.
-from rag_chatbot import PolicyRAGChatbot 
+from rag_api.rag_chatbot import PolicyRAGChatbot 
+
+# -------------------------------------------------------------
+# 1. 클린봇 AI 라우터 임포트 및 모델 초기화 (---추가됨---)
+# -------------------------------------------------------------
+from filter_api.api import router as filter_router, initialize_toxicity_model
+from title_api.api import router as title_router, initialize_title_client 
+
 
 # ============================================================
-# 1) RAG 챗봇 초기화
+# 1) 모든 모델/클라이언트 초기화
 # ============================================================
 
+# --- RAG 챗봇 초기화 ---
 # 파일 경로는 .env 또는 기본값으로 설정
 EMBEDDING_MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", r"C:\Users\user\Desktop\bge-m3-sft")
 FAISS_INDEX_PATH = os.getenv("FAISS_INDEX_PATH", r"C:\Users\user\Desktop\policy_faiss.index")
@@ -32,12 +39,26 @@ chatbot = PolicyRAGChatbot(
     device="cpu"
 )
 
+# --- 클린봇 AI 초기화 (---추가됨---)
+try:
+    initialize_toxicity_model()
+except Exception as e:
+    print(f"⚠️ 경고: 유해성 필터링 모델 초기화 실패. 클린봇 기능이 작동하지 않을 수 있습니다.")
+    print(f"오류 상세: {e}")
+    
+# --- GPT 제목 생성 클라이언트 초기화 (---추가됨---)
+try:
+    initialize_title_client()
+except Exception as e:
+    print(f"⚠️ 경고: GPT 제목 생성 클라이언트 초기화 실패. 제목 생성 기능이 작동하지 않을 수 있습니다.")
+    print(f"오류 상세: {e}")
+
 
 # ============================================================
 # 2) FastAPI 초기 설정
 # ============================================================
 
-app = FastAPI(title="RAG Chatbot API")
+app = FastAPI(title="RAG, Cleanbot, & Title Generation API") # 타이틀 업데이트
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,6 +94,14 @@ class QueryResponse(BaseModel):
     botResponse: str = Field(..., description="사용자에게 표시될 최종 답변 텍스트")
     followUpQuestions: Optional[List[str]] = Field(None, description="추천 후속 질문 목록")
 
+
+# -------------------------------------------------------------
+# 2. 라우터 등록 (---추가됨---)
+# -------------------------------------------------------------
+app.include_router(filter_router)
+app.include_router(title_router)
+
+
 # ============================================================
 # 4) API 구현: 챗봇응답 (POST /api/v1/query)
 # ============================================================
@@ -97,10 +126,6 @@ def handle_query(request: QueryRequest):
     try:
         # 1) RAG 호출
         # PolicyRAGChatbot.answer() 메서드는 API Response 스펙에 필요한 모든 데이터를 반환해야 합니다.
-        # (sourceData, queryTitle, botResponse, followUpQuestions)
-        
-        # PolicyRAGChatbot의 answer 메서드가 다음과 같은 딕셔너리를 반환한다고 가정합니다:
-        # { 'answer': str, 'sources': List[Dict], 'query_title': str, 'follow_up_questions': List[str] }
         result = chatbot.answer(request.query)
         
         # 2) 결과 파싱 및 응답 모델에 맞게 데이터 변환
@@ -127,3 +152,36 @@ def handle_query(request: QueryRequest):
             status_code=500,
             detail="챗봇 답변 생성 중 오류가 발생했습니다."
         )
+
+# ============================================================
+# 6) 헬스체크 엔드포인트 (---추가됨---)
+# ============================================================
+
+@app.get("/health")
+def health_check():
+    """API 서버 상태 확인"""
+    # title_api.api 모듈에서 TITLE_GENERATION_CLIENT 상태를 가져오기 위해 동적 임포트를 사용합니다.
+    try:
+        import title_api.api
+        title_status = "active" if title_api.api.TITLE_GENERATION_CLIENT is not None else "failed"
+    except (ImportError, AttributeError):
+        title_status = "unknown"
+    
+    return {
+        "status": "healthy",
+        "services": {
+            "rag_chatbot": "active",
+            "toxicity_filter": "active",
+            "title_generation": title_status
+        }
+    }
+
+
+# ============================================================
+# 7) 서버 실행 (로컬 테스트용)
+# ============================================================
+
+if __name__ == "__main__":
+    import uvicorn
+    # uvicorn 실행 전에 필요한 모든 초기화가 완료되어야 함
+    uvicorn.run(app, host="0.0.0.0", port=8000)

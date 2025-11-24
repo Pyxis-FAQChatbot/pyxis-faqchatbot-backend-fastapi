@@ -17,3 +17,8 @@ env/
 # OS 파일
 .DS_Store
 Thumbs.db
+
+# 모델
+models/
+faiss.index
+metadata.json
