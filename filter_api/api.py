@@ -16,7 +16,9 @@ TOXICITY_TOKENIZER = None
 DEVICE = "cpu" # 초기값, initialize_toxicity_model에서 변경됨
 
 # 모델 파일 경로 (필요에 따라 .env에서 가져오거나 하드코딩)
-MODEL_DIR = os.getenv("TOXICITY_MODEL_PATH", "/content/drive/MyDrive/bad_sentence/trained_model_final")
+MODEL_DIR = os.getenv("TOXICITY_MODEL_PATH")
+if not MODEL_DIR:
+    raise RuntimeError("X TOXICITY_MODEL_PATH(.env)이 설정되지 않았습니다.")
 
 # ============================================================
 # 1) 모델 초기화 함수

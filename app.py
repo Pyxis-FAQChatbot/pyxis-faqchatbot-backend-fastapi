@@ -26,9 +26,17 @@ from title_api.api import router as title_router, initialize_title_client
 
 # --- RAG 챗봇 초기화 ---
 # 파일 경로는 .env 또는 기본값으로 설정
-EMBEDDING_MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", r"C:\Users\user\Desktop\bge-m3-sft")
-FAISS_INDEX_PATH = os.getenv("FAISS_INDEX_PATH", r"C:\Users\user\Desktop\policy_faiss.index")
-METADATA_JSON_PATH = os.getenv("METADATA_JSON_PATH", r"C:\Users\user\Desktop\metadata.json")
+EMBEDDING_MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH")
+FAISS_INDEX_PATH = os.getenv("FAISS_INDEX_PATH")
+METADATA_JSON_PATH = os.getenv("METADATA_JSON_PATH")
+
+if not EMBEDDING_MODEL_PATH:
+    raise RuntimeError("❌ EMBEDDING_MODEL_PATH (.env) 가 설정되지 않았습니다.")
+if not FAISS_INDEX_PATH:
+    raise RuntimeError("❌ FAISS_INDEX_PATH (.env) 가 설정되지 않았습니다.")
+if not METADATA_JSON_PATH:
+    raise RuntimeError("❌ METADATA_JSON_PATH (.env) 가 설정되지 않았습니다.")
+
 
 # PolicyRAGChatbot 초기화 (실제 PolicyRAGChatbot 클래스를 사용)
 chatbot = PolicyRAGChatbot(

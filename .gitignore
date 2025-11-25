@@ -22,3 +22,5 @@ Thumbs.db
 models/
 faiss.index
 metadata.json
+
+diagnose.py

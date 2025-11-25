@@ -399,8 +399,8 @@ def main():
     # Windows 예시: "C:/Users/YourName/Desktop/bizinfo_data"
     # Mac/Linux 예시: "~/Desktop/bizinfo_data"
     
-    BASE_PATH = "C:\\Users\\user\\Desktop\\bizinfo_data"  # 👈 이 부분을 수정하세요!
-    MODEL_PATH = "C:\\Users\\user\\Desktop\\bge-m3-sft"  # 👈 파인튜닝 모델 경로
+    BASE_PATH = os.getenv("BIZINFO_DATA_PATH")
+    MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH")  # 👈 파인튜닝 모델 경로
     
     try:
         # 빌더 초기화

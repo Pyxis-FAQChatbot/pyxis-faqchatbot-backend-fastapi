@@ -23,9 +23,9 @@ import re # 👈 URL 추출을 위해 re 모듈 import
 # ============================================================
 
 # 파일 경로
-FINETUNED_MODEL_PATH = "C:\\Users\\user\\Desktop\\bge-m3-sft"
-FAISS_INDEX_PATH = "C:\\Users\\user\\Desktop\\policy_faiss.index"
-METADATA_PATH = "C:\\Users\\user\\Desktop\\metadata.json"
+FINETUNED_MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH")
+FAISS_INDEX_PATH     = os.getenv("FAISS_INDEX_PATH")
+METADATA_PATH        = os.getenv("METADATA_JSON_PATH")
 
 # OpenAI API 키 (환경변수에서 로드)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
