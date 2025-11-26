@@ -28,7 +28,10 @@ if not MODEL_PATH:
 device = "cpu"
 
 try:
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+    tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_PATH, 
+        use_fast=False
+        )
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH).to(device)
     print(f"✅ Loaded CleanBot model from: {MODEL_PATH}")
 except Exception as e:
