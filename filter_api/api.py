@@ -5,6 +5,9 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from fastapi import APIRouter, HTTPException, status
 from filter_api.model import FilterQueryRequest, FilterResponse, ErrorResponse
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ============================================================
 # 전역 변수 (모델 및 토크나이저 저장)
@@ -14,6 +17,9 @@ from filter_api.model import FilterQueryRequest, FilterResponse, ErrorResponse
 TOXICITY_MODEL = None
 TOXICITY_TOKENIZER = None
 DEVICE = "cpu" # 초기값, initialize_toxicity_model에서 변경됨
+
+
+print("DEBUG TOXIC_PATH=", os.getenv("TOXICITY_MODEL_PATH"))
 
 # 모델 파일 경로 (필요에 따라 .env에서 가져오거나 하드코딩)
 MODEL_DIR = os.getenv("TOXICITY_MODEL_PATH")
