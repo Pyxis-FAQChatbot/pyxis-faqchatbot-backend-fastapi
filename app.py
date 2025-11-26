@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import requests
 
 # .env 파일 로드
 load_dotenv()
@@ -16,7 +17,6 @@ from rag_api.rag_chatbot import PolicyRAGChatbot
 # -------------------------------------------------------------
 # 1. 클린봇 AI 라우터 임포트 및 모델 초기화 (---추가됨---)
 # -------------------------------------------------------------
-from filter_api.api import router as filter_router, initialize_toxicity_model
 from title_api.api import router as title_router, initialize_title_client 
 
 
@@ -29,6 +29,7 @@ from title_api.api import router as title_router, initialize_title_client
 EMBEDDING_MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH")
 FAISS_INDEX_PATH = os.getenv("FAISS_INDEX_PATH")
 METADATA_JSON_PATH = os.getenv("METADATA_JSON_PATH")
+CLEANBOT_URL = os.getenv("CLEANBOT_URL", "http://localhost:9000/predict")
 
 if not EMBEDDING_MODEL_PATH:
     raise RuntimeError("❌ EMBEDDING_MODEL_PATH (.env) 가 설정되지 않았습니다.")
@@ -47,12 +48,6 @@ chatbot = PolicyRAGChatbot(
     device="cpu"
 )
 
-# --- 클린봇 AI 초기화 (---추가됨---)
-try:
-    initialize_toxicity_model()
-except Exception as e:
-    print(f"⚠️ 경고: 유해성 필터링 모델 초기화 실패. 클린봇 기능이 작동하지 않을 수 있습니다.")
-    print(f"오류 상세: {e}")
     
 # --- GPT 제목 생성 클라이언트 초기화 (---추가됨---)
 try:
@@ -103,10 +98,23 @@ class QueryResponse(BaseModel):
     followUpQuestions: Optional[List[str]] = Field(None, description="추천 후속 질문 목록")
 
 
+# ============================================================
+# 💥 CleanBot 호출 함수 (새로 추가됨)
+# ============================================================
+
+def is_toxic(text: str) -> bool:
+    try:
+        res = requests.post(CLEANBOT_URL, json={"text": text}, timeout=3)
+        if res.status_code != 200:
+            return False
+        data = res.json()
+        return data.get("toxic", False)
+    except Exception:
+        print("⚠️ CleanBot 서버 접속 실패 — 필터링 건너뜀")
+        return False
 # -------------------------------------------------------------
 # 2. 라우터 등록 (---추가됨---)
 # -------------------------------------------------------------
-app.include_router(filter_router)
 app.include_router(title_router)
 
 
@@ -131,6 +139,13 @@ def handle_query(request: QueryRequest):
             }
         )
 
+    # 1) 먼저 CleanBot 검사
+    if is_toxic(request.query):
+        raise HTTPException(
+            status_code=406,
+            detail={"error": "TOXIC_CONTENT", "message": "유해성 콘텐츠가 포함되어 있습니다."}
+        )
+    
     try:
         # 1) RAG 호출
         # PolicyRAGChatbot.answer() 메서드는 API Response 스펙에 필요한 모든 데이터를 반환해야 합니다.
