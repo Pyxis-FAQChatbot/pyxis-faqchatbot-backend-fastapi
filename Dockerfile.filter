@@ -1,0 +1,19 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# requirements.txt 복사 및 설치
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# backend 전체 복사
+COPY . /app
+
+# .env 복사
+COPY .env /app/.env
+
+# 파이썬 경로 설정
+ENV PYTHONPATH="/app"
+
+# CleanBot FastAPI 서버 실행
+CMD ["uvicorn", "filter_api.server:app", "--host", "0.0.0.0", "--port", "9000"]

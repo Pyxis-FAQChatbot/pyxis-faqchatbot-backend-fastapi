@@ -1,0 +1,19 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# requirements.txt 복사 및 설치
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# backend 전체 복사 (app.py, rag_api, filter_api, models 등 포함)
+COPY . /app
+
+# 환경변수 파일도 포함
+COPY .env /app/.env
+
+# 파이썬 import 경로 문제 방지
+ENV PYTHONPATH="/app"
+
+# RAG FastAPI 서버 실행
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
